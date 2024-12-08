@@ -33,15 +33,15 @@ A sophisticated trading system that combines Active Inference methodology with G
 ```
 trade-manager/
 ├── src/
-│   ├── core/           # Core trading components
+│   ├── core/                   # Core trading components
 │   │   ├── trade_engine.py     # Main trading engine
 │   │   ├── portfolio.py        # Portfolio management
 │   │   └── risk_manager.py     # Risk management system
-│   ├── strategy/       # Trading strategies
+│   ├── strategy/               # Trading strategies
 │   │   ├── optimizer.py        # Active Inference optimizer
 │   │   └── executor.py         # Strategy execution
-│   ├── api/           # External integrations
-│   └── utils/         # Utility functions
+│   ├── api/                    # External integrations
+│   └── utils/                  # Utility functions
 └── docs/
     ├── active_inference.md     # Active Inference documentation
     ├── api_reference.md        # API documentation
@@ -79,12 +79,12 @@ config = {
     
     # Risk parameters
     "max_position_size": 0.1,     # Maximum position size
-    "risk_per_trade": 0.02,      # Risk per trade
+    "risk_per_trade": 0.02,       # Risk per trade
     "max_portfolio_heat": 1.0,    # Maximum portfolio risk
     
     # Trading parameters
     "max_concurrent_trades": 10,  # Maximum open positions
-    "base_position_size": 0.01   # Base position size
+    "base_position_size": 0.01    # Base position size
 }
 ```
 
