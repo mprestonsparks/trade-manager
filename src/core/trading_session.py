@@ -10,7 +10,7 @@ from datetime import datetime
 
 from ..core.system_state import SystemState
 from ..core.trade_engine import TradeEngine
-from ..strategy.unified_optimizer import UnifiedOptimizer
+from ..strategy.portfolio_optimizer import UnifiedOptimizer
 from ..brokers.base_broker import BaseBroker
 from ..config.trading_config import get_default_config, validate_config
 

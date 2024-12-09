@@ -6,7 +6,42 @@ import logging
 from datetime import datetime
 
 from .system_state import SystemState, Position, PortfolioState, RiskMetrics, ExecutionState, PerformanceMetrics
-from ..strategy.unified_optimizer import UnifiedOptimizer, OptimizedParameters
+from ..strategy.portfolio_optimizer import UnifiedOptimizer, OptimizedParameters
+from .market_types import MarketState
+
+@dataclass
+class MarketSignal:
+    """Market signal from market-analysis service"""
+    timestamp: datetime
+    signal_type: str  # 'BUY', 'SELL', or 'HOLD'
+    confidence: float  # Signal confidence between 0 and 1
+    indicators: List[str]  # Indicators contributing to signal
+    state_context: Optional[MarketState]  # Market state context
+
+@dataclass
+class Trade:
+    """Represents a trade with its execution details"""
+    trade_id: str
+    symbol: str
+    direction: str  # 'long' or 'short'
+    size: Decimal
+    entry_price: Decimal
+    entry_time: datetime
+    exit_price: Optional[Decimal] = None
+    exit_time: Optional[datetime] = None
+    stop_loss: Optional[Decimal] = None
+    take_profit: Optional[Decimal] = None
+    status: str = 'open'  # 'open', 'closed', 'cancelled'
+    pnl: Optional[Decimal] = None
+    metadata: Dict[str, Any] = None
+
+@dataclass
+class TradeResult:
+    """Result of a trade execution"""
+    success: bool
+    trade: Optional[Trade]
+    error_message: Optional[str] = None
+    execution_info: Optional[Dict[str, Any]] = None
 
 @dataclass
 class TradingAction:

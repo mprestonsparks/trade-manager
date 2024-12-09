@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  market-analysis:
+    build: 
+      context: ${MARKET_ANALYSIS_PATH:-../market-analysis}
+      dockerfile: Dockerfile
+      args:
+        - REQUIREMENTS_FILE=requirements/requirements-core.txt
+    ports:
+      - "8000:8000"
+    environment:
+      - API_PORT=8000
+      - API_HOST=0.0.0.0
+      - PYTHONPATH=/app
+    volumes:
+      - ${MARKET_ANALYSIS_PATH:-../market-analysis}:/app
+    command: uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - trading_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  trade-manager-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - PYTHONPATH=/app
+      - MARKET_ANALYSIS_HOST=market-analysis
+      - MARKET_ANALYSIS_PORT=8000
+      - TRADE_DISCOVERY_HOST=trade-discovery
+      - TRADE_DISCOVERY_PORT=8002
+    volumes:
+      - .:/app
+    command: python -m pytest tests/integration/test_market_analysis_integration.py -v
+    networks:
+      - trading_net
+    depends_on:
+      market-analysis:
+        condition: service_healthy
+
+networks:
+  trading_net:
+    external: true

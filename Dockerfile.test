@@ -1,0 +1,53 @@
+# Use an official Python runtime as a parent image
+FROM python:3.10-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PATH="/root/.local/bin:$PATH"
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies and uv
+RUN apt-get update && apt-get install -y \
+    gcc \
+    python3-dev \
+    curl \
+    python3-tk \
+    git \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create setup.py that filters out tkinter
+RUN echo 'from setuptools import setup, find_packages\nsetup(\n    name="market-analysis",\n    packages=find_packages(where="src"),\n    package_dir={"": "src"},\n    install_requires=[\n        line.strip() for line in open("requirements.txt")\n        if not line.strip().startswith("tkinter")\n    ]\n)' > setup.py
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install dependencies and pytest using uv
+RUN uv pip install --system --no-cache -r requirements.txt pytest pytest-cov pytest-asyncio
+
+# Copy the rest of the application
+COPY . .
+
+# Clone and install market-analysis, handling tkinter dependency
+RUN git clone https://github.com/mprestonsparks/market-analysis.git /app/market-analysis && \
+    cd /app/market-analysis && \
+    cp /app/setup.py . && \
+    sed -i '/tkinter/d' requirements.txt && \
+    uv pip install --system --no-cache -e . && \
+    uv pip install --system --no-cache -r requirements.txt && \
+    cd /app/src && \
+    ln -s /app/market-analysis/src/market_analysis.py market_analysis.py
+
+# Set PYTHONPATH to include both app directories
+ENV PYTHONPATH=/app:/app/market-analysis/src:${PYTHONPATH}
+
+# Environment variables for service discovery
+ENV MARKET_ANALYSIS_HOST=market-analysis
+ENV MARKET_ANALYSIS_PORT=8000
+ENV TRADE_DISCOVERY_HOST=trade-discovery
+ENV TRADE_DISCOVERY_PORT=8002
+
+# Set the default command to run tests
+CMD ["pytest", "tests/", "-v", "--cov=src"]

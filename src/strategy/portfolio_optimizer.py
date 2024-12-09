@@ -9,7 +9,7 @@ import numpy as np
 from decimal import Decimal
 import logging
 from datetime import datetime
-from ..core.system_state import SystemState, Position, PortfolioState, RiskMetrics
+from ..core.system_state import SystemState, Position, PortfolioState, RiskMetrics, ExecutionState, PerformanceMetrics
 
 @dataclass
 class OptimizedParameters:
@@ -218,7 +218,7 @@ class UnifiedOptimizer:
             fitness = (
                 0.4 * risk_adjusted_return +
                 0.3 * sharpe_ratio +
-                0.2 * recovery_factor -
+                0.2 * recovery_factor - 
                 0.1 * (concentration_penalty + risk_penalty + execution_penalty)
             )
             

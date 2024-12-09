@@ -7,11 +7,25 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Any
 from decimal import Decimal
 from datetime import datetime
+from .market_types import MarketState
+
+@dataclass
+class Position:
+    """Position information for a single instrument"""
+    symbol: str
+    quantity: Decimal
+    avg_price: Decimal
+    current_price: Decimal
+    unrealized_pnl: Decimal
+    realized_pnl: Decimal
+    market_value: Decimal
+    cost_basis: Decimal
+    last_update: datetime
 
 @dataclass
 class PortfolioState:
     """Portfolio state including positions and allocations"""
-    positions: Dict[str, Dict[str, Any]]
+    positions: Dict[str, Position]
     total_value: Decimal
     cash_balance: Decimal
     margin_used: Decimal
@@ -65,8 +79,15 @@ class SystemState:
     Tracks and updates beliefs about portfolio, risk, and execution states.
     """
     
-    def __init__(self):
-        """Initialize system state"""
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize system state.
+        
+        Args:
+            config: Configuration dictionary containing trading parameters
+        """
+        self.config = config
+        
         self.portfolio_state = PortfolioState(
             positions={},
             total_value=Decimal('0'),
@@ -114,17 +135,17 @@ class SystemState:
             transaction_costs=0.0
         )
         
-        self.market_data: Dict[str, Dict[str, Any]] = {}
+        self.market_states: Dict[str, MarketState] = {}  # Market states by symbol
         self.last_update: Optional[datetime] = None
         
-    def update_market_data(self, data: Dict[str, Dict[str, Any]]) -> None:
+    def update_market_data(self, data: Dict[str, MarketState]) -> None:
         """
         Update market data and beliefs.
         
         Args:
-            data: Market data by symbol
+            data: Market states by symbol from market-analysis service
         """
-        self.market_data = data
+        self.market_states = data
         self.last_update = datetime.now()
         
     def update_positions(self, positions: List[Any]) -> None:
@@ -140,14 +161,17 @@ class SystemState:
         
         for pos in positions:
             symbol = pos.contract.symbol
-            position_dict[symbol] = {
-                'size': Decimal(str(pos.position)),
-                'avg_cost': Decimal(str(pos.avgCost)),
-                'market_price': Decimal(str(pos.marketPrice)),
-                'market_value': Decimal(str(pos.marketValue)),
-                'unrealized_pnl': Decimal(str(pos.unrealizedPNL)),
-                'realized_pnl': Decimal(str(pos.realizedPNL))
-            }
+            position_dict[symbol] = Position(
+                symbol=symbol,
+                quantity=Decimal(str(pos.position)),
+                avg_price=Decimal(str(pos.avgCost)),
+                current_price=Decimal(str(pos.marketPrice)),
+                unrealized_pnl=Decimal(str(pos.unrealizedPNL)),
+                realized_pnl=Decimal(str(pos.realizedPNL)),
+                market_value=Decimal(str(pos.marketValue)),
+                cost_basis=Decimal(str(pos.costBasis)),
+                last_update=datetime.now()
+            )
             total_value += Decimal(str(pos.marketValue))
             
         self.portfolio_state.positions = position_dict
@@ -156,7 +180,7 @@ class SystemState:
         # Update asset allocation
         if total_value > 0:
             self.portfolio_state.asset_allocation = {
-                symbol: float(pos['market_value'] / total_value)
+                symbol: float(pos.market_value / total_value)
                 for symbol, pos in position_dict.items()
             }
             

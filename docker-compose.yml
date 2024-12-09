@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "8001:8001"
+    environment:
+      - PYTHONPATH=/app
+      - MARKET_ANALYSIS_HOST=market-analysis
+      - MARKET_ANALYSIS_PORT=8000
+      - TRADE_DISCOVERY_HOST=trade-discovery
+      - TRADE_DISCOVERY_PORT=8002
+    volumes:
+      - .:/app
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8001 --reload
+    networks:
+      - trading_net
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - PYTHONPATH=/app
+      - MARKET_ANALYSIS_HOST=market-analysis
+      - MARKET_ANALYSIS_PORT=8000
+      - TRADE_DISCOVERY_HOST=trade-discovery
+      - TRADE_DISCOVERY_PORT=8002
+    volumes:
+      - .:/app
+    command: python -m pytest tests/ -v
+    networks:
+      - trading_net
+
+networks:
+  trading_net:
+    external: true

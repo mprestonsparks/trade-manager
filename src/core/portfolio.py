@@ -9,7 +9,8 @@ import logging
 from datetime import datetime
 
 from .system_state import SystemState, PortfolioState
-from ..strategy.unified_optimizer import OptimizedParameters
+from ..strategy.portfolio_optimizer import OptimizedParameters
+from .market_types import MarketState
 
 @dataclass
 class TradeSignal:
