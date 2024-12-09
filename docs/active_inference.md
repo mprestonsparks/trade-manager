@@ -2,132 +2,180 @@
 
 ## Overview
 
-The Trade Manager implements a sophisticated trading decision system that combines Active Inference with Genetic Algorithms to create an adaptive, self-optimizing trading engine. This document explains the theoretical foundation, implementation details, and practical usage of the system.
+The Trade Manager implements a holistic trading decision system that uses Active Inference and Genetic Algorithms to optimize all aspects of trading for maximum risk-adjusted returns. Rather than treating portfolio management, risk management, and trade execution as separate systems, it uses AI/GA methodologies to jointly optimize all trading decisions.
 
 ## Theoretical Foundation
 
-### Active Inference
+### Active Inference Framework
 
-Active Inference is a theoretical framework that treats decision-making as a process of minimizing expected free energy. In our trading context, this means:
+Active Inference is used as the core decision-making framework across all trading domains. The system maintains and updates beliefs about:
 
-1. **Belief Updating**: The system maintains and updates beliefs about:
-   - Market trends
-   - Volatility levels
-   - Momentum
-   - Support/resistance levels
-   - Market regimes
+1. **Portfolio Management**
+   - Optimal asset allocation
+   - Position sizing
+   - Portfolio diversification
+   - Rebalancing timing and thresholds
 
-2. **Free Energy Minimization**: Trading decisions are made by minimizing two components:
-   - Expected surprise (divergence between predicted and actual market states)
-   - Information gain (reduction in uncertainty about market state)
+2. **Risk Management**
+   - Position-level risk parameters
+   - Portfolio-level risk exposure
+   - Stop loss and take profit levels
+   - Risk-adjusted position sizing
 
-### Genetic Algorithms
+3. **Trade Execution**
+   - Entry and exit timing
+   - Order types and parameters
+   - Execution strategies
+   - Market impact considerations
 
-The system uses genetic algorithms to evolve and optimize trading actions:
+### Belief Updating Process
 
-1. **Population**: Set of possible trading actions
-2. **Fitness**: Evaluated using free energy principles
-3. **Evolution**: Actions are evolved through:
-   - Tournament selection
-   - Crossover between successful actions
-   - Mutation for exploration
+The system updates its beliefs through:
+1. **Perception**: Processing market states and analysis from the market-analysis system
+2. **Learning**: Updating beliefs based on trading outcomes and performance
+3. **Adaptation**: Adjusting parameters across all domains based on market conditions
+
+### Genetic Algorithm Optimization
+
+The genetic algorithm component evolves optimal solutions across all trading domains simultaneously:
+
+1. **Population**: Trading strategies that encode:
+   - Portfolio allocation rules
+   - Risk management parameters
+   - Execution parameters
+
+2. **Fitness Function**: Primarily based on risk-adjusted returns, considering:
+   - Sharpe Ratio
+   - Maximum Drawdown
+   - Portfolio Turnover
+   - Transaction Costs
+   - Market Impact
+
+3. **Evolution Process**:
+   - Selection based on risk-adjusted performance
+   - Crossover of successful strategies
+   - Mutation for parameter exploration
    - Multi-generational optimization
 
 ## Implementation Details
 
-### Market Beliefs (`MarketBelief` class)
-
+### System State (`SystemState` class)
 ```python
 @dataclass
-class MarketBelief:
-    trend_strength: float              # Range [-1, 1]
-    volatility: float                  # Range [0, 1]
-    momentum: float                    # Range [-1, 1]
-    support_resistance: List[float]
-    market_regime: str                 # "trending", "ranging", etc.
-    confidence: float                  # Range [0, 1]
+class SystemState:
+    portfolio_state: PortfolioState
+    risk_metrics: RiskMetrics
+    execution_state: ExecutionState
+    market_state: MarketState  # From market-analysis system
+    performance_metrics: PerformanceMetrics
 ```
 
-### Trading Actions (`TradingAction` class)
+### Action Generation
 
+The system generates actions that jointly optimize across all domains:
+
+1. **Portfolio Actions**
+   - Asset allocation adjustments
+   - Position size modifications
+   - Rebalancing decisions
+
+2. **Risk Management Actions**
+   - Stop loss adjustments
+   - Risk exposure modifications
+   - Hedging decisions
+
+3. **Execution Actions**
+   - Order placement timing
+   - Order type selection
+   - Execution strategy parameters
+
+### Optimization Process
+
+1. **State Evaluation**
 ```python
-@dataclass
-class TradingAction:
-    action_type: str                 # "enter_long", "enter_short", etc.
-    size: Decimal                    # Position size
-    entry_price: Optional[Decimal]
-    stop_loss: Optional[Decimal]
-    take_profit: Optional[Decimal]
-    expected_reward: float           # Expected profit/loss
-    uncertainty: float               # Uncertainty in reward
-
-### Active Inference Process
-
-1. **Belief Updating**
-   ```python
-   def update_beliefs(self, market_data: Dict[str, Any]) -> None:
-       # Extract market features
-       trend = self._calculate_trend(market_data)
-       vol = self._calculate_volatility(market_data)
-       mom = self._calculate_momentum(market_data)
-       
-       # Update beliefs using precision-weighted prediction errors
-       prediction_error = {
-           'trend': trend - self.market_belief.trend_strength,
-           'volatility': vol - self.market_belief.volatility,
-           'momentum': mom - self.market_belief.momentum
-       }
-   ```
+def evaluate_system_state(self) -> SystemState:
+    """Evaluate current state across all domains"""
+    portfolio_state = self.get_portfolio_state()
+    risk_metrics = self.calculate_risk_metrics()
+    execution_state = self.get_execution_state()
+    market_state = self.market_analyzer.get_current_state()
+    performance = self.calculate_performance_metrics()
+    return SystemState(portfolio_state, risk_metrics, 
+                      execution_state, market_state, performance)
+```
 
 2. **Action Generation**
-   ```python
-   def generate_actions(self) -> List[TradingAction]:
-       # Generate initial population
-       population = self._initialize_action_population()
-       
-       # Evolve through multiple generations
-       for generation in range(self.config.get("num_generations", 10)):
-           fitness_scores = [self._evaluate_action_fitness(action) 
-                           for action in population]
-           parents = self._select_parents(population, fitness_scores)
-           population = self._evolve_population(parents)
-   ```
+```python
+def generate_actions(self) -> List[TradingAction]:
+    """Generate optimized actions across all domains"""
+    system_state = self.evaluate_system_state()
+    population = self.initialize_action_population()
+    
+    for generation in range(self.config.num_generations):
+        fitness_scores = [
+            self.evaluate_risk_adjusted_returns(action, system_state)
+            for action in population
+        ]
+        population = self.evolve_population(population, fitness_scores)
+    
+    return self.select_best_actions(population)
+```
 
-### Genetic Algorithm Components
+## Performance Metrics
 
-1. **Fitness Evaluation**
-   ```python
-   def _evaluate_action_fitness(self, action: TradingAction) -> float:
-       # Calculate expected reward component
-       expected_reward = self._calculate_expected_reward(action)
-       
-       # Calculate information gain component
-       information_gain = self._calculate_information_gain(action)
-       
-       # Combine using precision-weighted sum
-       precision = 1.0 / (action.uncertainty + 1e-6)
-       free_energy = precision * expected_reward + 
-                    self.exploration_factor * information_gain
-   ```
+The system optimizes for risk-adjusted returns using:
 
-2. **Evolution Process**
-   - Tournament Selection: Select best actions for reproduction
-   - Crossover: Combine attributes of successful actions
-   - Mutation: Random variations to explore action space
+1. **Primary Metrics**
+   - Sharpe Ratio
+   - Sortino Ratio
+   - Maximum Drawdown
+   - Risk-adjusted Return on Capital (RAROC)
+
+2. **Secondary Metrics**
+   - Portfolio Turnover
+   - Transaction Costs
+   - Market Impact
+   - Tracking Error
 
 ## Configuration
 
-The system can be configured through several parameters:
+The system can be configured through:
+
+1. **Optimization Parameters**
+   - Learning rates
+   - Population size
+   - Generation count
+   - Mutation rates
+
+2. **Risk Parameters**
+   - Maximum position sizes
+   - Portfolio concentration limits
+   - Value at Risk (VaR) limits
+   - Maximum drawdown limits
+
+3. **Execution Parameters**
+   - Order size limits
+   - Minimum time between trades
+   - Maximum spread thresholds
+   - Market impact thresholds
+
+## Usage Example
 
 ```python
-config = {
-    "learning_rate": 0.01,        # Rate of belief updating
-    "exploration_factor": 0.1,    # Weight of information gain
-    "num_generations": 10,        # Generations per optimization
-    "population_size": 100,       # Number of actions per generation
-    "tournament_size": 5,         # Parents selected per tournament
-    "mutation_rate": 0.1          # Probability of mutation
-}
+# Initialize system
+trade_manager = TradeManager(config)
+
+# Process market updates
+async def process_market_update(market_data):
+    # Get market analysis
+    analysis = market_analyzer.analyze(market_data)
+    
+    # Generate optimized actions
+    actions = trade_manager.generate_actions(analysis)
+    
+    # Execute optimal actions
+    for action in actions:
+        await trade_manager.execute_action(action)
 ```
 
 ## Integration with Trade Engine

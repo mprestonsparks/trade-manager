@@ -1,197 +1,222 @@
 from decimal import Decimal
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 import asyncio
 import logging
-from .risk_manager import RiskManager
-from ..strategy.optimizer import ActiveInferenceOptimizer, MarketBelief, TradingAction
+from datetime import datetime
+
+from .system_state import SystemState, Position, PortfolioState, RiskMetrics, ExecutionState, PerformanceMetrics
+from ..strategy.unified_optimizer import UnifiedOptimizer, OptimizedParameters
 
 @dataclass
-class MarketSignal:
-    """Market signal containing state and trade recommendations"""
+class TradingAction:
+    """Represents a specific trading action to be executed"""
+    action_type: str  # 'buy' or 'sell'
     symbol: str
-    direction: str  # "long" or "short"
-    confidence: float
-    timestamp: float
-    volatility: float
-    metadata: Dict[str, Any]
-
-@dataclass
-class Trade:
-    """Trade execution details"""
-    symbol: str
-    direction: str
     size: Decimal
-    entry_price: Optional[Decimal]
+    order_type: str  # 'MKT', 'LMT', etc.
+    limit_price: Optional[Decimal]
     stop_loss: Optional[Decimal]
     take_profit: Optional[Decimal]
     metadata: Dict[str, Any]
 
-@dataclass
-class TradeResult:
-    """Result of trade execution"""
-    success: bool
-    trade_id: Optional[str]
-    executed_price: Optional[Decimal]
-    message: str
-    timestamp: float
-
 class TradeEngine:
     """
     Primary trade management system coordinating all trading operations.
-    Implements Active Inference methodology for trade optimization.
+    Implements holistic optimization across portfolio, risk, and execution domains.
     """
-    def __init__(self, config: Dict[str, Any]):
+    
+    def __init__(
+        self,
+        config: Dict[str, Any],
+        system_state: SystemState,
+        optimizer: UnifiedOptimizer
+    ):
         """
         Initialize trade engine with configuration parameters.
         
         Args:
-            config: Configuration dictionary containing:
-                - API endpoints
-                - Risk parameters
-                - Strategy settings
-                - Portfolio limits
+            config: Configuration dictionary containing trading parameters
+            system_state: SystemState instance for tracking system state
+            optimizer: UnifiedOptimizer instance for trading decisions
         """
         self.config = config
+        self.system_state = system_state
+        self.optimizer = optimizer
         self.logger = logging.getLogger(__name__)
-        self.active_trades: Dict[str, Trade] = {}
-        self.risk_manager = RiskManager(config)
-        self.optimizer = ActiveInferenceOptimizer(config)
         
-    async def process_market_signal(self, signal: MarketSignal) -> None:
+        # Initialize tracking
+        self.active_trades: Dict[str, Position] = {}
+        self.pending_actions: List[TradingAction] = []
+        self.last_optimization: Optional[datetime] = None
+        
+        # Load configuration
+        self.max_position_size = Decimal(str(config.get('max_position_size', 0.1)))
+        self.max_concentration = Decimal(str(config.get('max_concentration', 0.3)))
+        self.var_limit = Decimal(str(config.get('var_limit', 0.02)))
+        self.min_trade_size = Decimal(str(config.get('min_trade_size', 1000)))
+        
+    def calculate_risk_metrics(self) -> RiskMetrics:
+        """Calculate current risk metrics"""
         try:
-            self.logger.info(f"Processing signal for {signal.symbol}")
+            if not self.system_state:
+                return self._get_default_risk_metrics()
             
-            # Validate signal
-            if not self._validate_signal(signal):
-                self.logger.warning(f"Invalid signal received for {signal.symbol}")
-                return
-                
-            # Update market beliefs using Active Inference
-            self.optimizer.update_beliefs({
-                'symbol': signal.symbol,
-                'price': signal.metadata.get('price', 0),
-                'volume': signal.metadata.get('volume', 0),
-                'timestamp': signal.timestamp,
-                'volatility': signal.volatility,
-                'market_data': signal.metadata.get('market_data', {})
-            })
+            portfolio = self.system_state.portfolio_state
+            positions = portfolio.positions
             
-            # Generate optimal actions using genetic algorithm
-            possible_actions = self.optimizer.generate_actions()
+            # Calculate portfolio VaR
+            position_values = {
+                symbol: pos.size * pos.current_price
+                for symbol, pos in positions.items()
+            }
+            total_value = sum(position_values.values())
             
-            if not possible_actions:
-                self.logger.warning("No viable actions generated")
-                return
-                
-            # Select best action
-            best_action = possible_actions[0]  # Actions are already sorted by fitness
+            # Calculate position VaRs and volatilities
+            position_var = {}
+            position_vol = {}
+            for symbol, pos in positions.items():
+                position_var[symbol] = float(position_values[symbol] / total_value) * self.var_limit
+                # In practice, you'd use actual volatility calculations
+                position_vol[symbol] = 0.02  # Placeholder
             
-            # Check if we have capacity for new trades
-            if best_action.action_type in ['enter_long', 'enter_short']:
-                if not self._check_trade_capacity():
-                    self.logger.info("Trade capacity reached, skipping signal")
-                    return
-                    
-            # Check risk metrics and adjust position size
-            is_acceptable, risk_metrics = self.risk_manager.calculate_position_risk(
-                signal.symbol,
-                best_action.size,
-                Decimal("0"),  # Entry price will be determined during execution
-                signal.volatility
+            # Calculate correlation matrix
+            # In practice, you'd use actual correlation calculations
+            correlation_matrix = {
+                s1: {s2: 1.0 if s1 == s2 else 0.5 
+                    for s2 in positions.keys()}
+                for s1 in positions.keys()
+            }
+            
+            return RiskMetrics(
+                portfolio_var=float(self.var_limit),
+                portfolio_volatility=0.02,  # Placeholder
+                position_var=position_var,
+                position_volatility=position_vol,
+                correlation_matrix=correlation_matrix,
+                max_drawdown=0.0,  # Would track this over time
+                sharpe_ratio=0.0,  # Would calculate from returns
+                sortino_ratio=0.0,  # Would calculate from returns
+                current_heat=sum(position_var.values())
             )
             
-            if not is_acceptable:
-                self.logger.warning(f"Risk check failed: {risk_metrics.get('error')}")
-                return
-                
-            # Create trade object with risk-adjusted parameters
-            trade = self._create_trade_from_action(signal, best_action, risk_metrics)
-            
-            # Execute trade
-            result = await self.execute_trade(trade)
-            
-            if result.success:
-                self.active_trades[result.trade_id] = trade
-                self.logger.info(f"Successfully executed trade {result.trade_id}")
-            else:
-                self.logger.error(f"Failed to execute trade: {result.message}")
-                
         except Exception as e:
-            self.logger.error(f"Error processing signal: {str(e)}")
+            self.logger.error(f"Error calculating risk metrics: {str(e)}")
+            return self._get_default_risk_metrics()
+    
+    def get_execution_state(self) -> ExecutionState:
+        """Get current execution state"""
+        return ExecutionState(
+            pending_orders=[],  # Would track actual pending orders
+            recent_fills=[],    # Would track recent fills
+            execution_latency=0.0,  # Would measure actual latency
+            spread_costs={},    # Would track actual spreads
+            market_impact={},   # Would calculate market impact
+            order_book_state={} # Would track order book state
+        )
+    
+    def calculate_performance(self) -> PerformanceMetrics:
+        """Calculate current performance metrics"""
+        try:
+            if not self.system_state:
+                return self._get_default_performance_metrics()
             
-    async def execute_trade(self, trade: Trade) -> TradeResult:
+            portfolio = self.system_state.portfolio_state
+            
+            # Calculate basic metrics
+            total_pnl = sum(
+                pos.unrealized_pnl + pos.realized_pnl
+                for pos in portfolio.positions.values()
+            )
+            
+            return PerformanceMetrics(
+                total_return=float(total_pnl / portfolio.total_value),
+                risk_adjusted_return=0.0,  # Would calculate using risk metrics
+                win_rate=0.0,             # Would track over time
+                profit_factor=0.0,        # Would calculate from trade history
+                avg_win_loss_ratio=0.0,   # Would calculate from trade history
+                max_drawdown=0.0,         # Would track over time
+                recovery_factor=0.0,      # Would calculate from drawdown
+                sharpe_ratio=0.0,         # Would calculate from returns
+                sortino_ratio=0.0,        # Would calculate from returns
+                calmar_ratio=0.0,         # Would calculate from returns/drawdown
+                portfolio_turnover=0.0,    # Would calculate from trading activity
+                transaction_costs=0.0      # Would track actual costs
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating performance metrics: {str(e)}")
+            return self._get_default_performance_metrics()
+    
+    def process_actions(self, params: OptimizedParameters) -> List[TradingAction]:
         """
-        Execute a trade based on validated signals and risk parameters.
+        Process optimized parameters into concrete trading actions.
         
         Args:
-            trade: Trade object containing execution details
+            params: Optimized parameters from the unified optimizer
             
         Returns:
-            TradeResult containing execution status and details
+            List of trading actions to execute
         """
         try:
-            # TODO: Implement actual trade execution logic with broker API
-            # This is a placeholder implementation
-            mock_price = Decimal("100")  # Mock current price
+            if not self.system_state:
+                return []
             
-            # Update risk metrics with actual execution price
-            self.risk_manager.update_position_risk(
-                trade.symbol,
-                mock_price,
-                float(trade.metadata.get("volatility", 0.2))
-            )
+            actions = []
+            portfolio = self.system_state.portfolio_state
             
-            return TradeResult(
-                success=True,
-                trade_id="mock_trade_id",
-                executed_price=mock_price,
-                message="Trade executed successfully",
-                timestamp=asyncio.get_event_loop().time()
-            )
+            # Process position size adjustments
+            for symbol, target_size in params.position_sizes.items():
+                current_size = Decimal('0')
+                if symbol in portfolio.positions:
+                    current_size = portfolio.positions[symbol].size
+                
+                size_diff = target_size - current_size
+                if abs(size_diff) > Decimal('0'):
+                    actions.append(TradingAction(
+                        action_type='buy' if size_diff > 0 else 'sell',
+                        symbol=symbol,
+                        size=abs(size_diff),
+                        order_type=params.execution_styles.get(symbol, 'MKT'),
+                        limit_price=None,  # Would calculate based on execution style
+                        stop_loss=params.stop_loss_levels.get(symbol),
+                        take_profit=params.take_profit_levels.get(symbol),
+                        metadata={}
+                    ))
+            
+            return actions
+            
         except Exception as e:
-            return TradeResult(
-                success=False,
-                trade_id=None,
-                executed_price=None,
-                message=f"Trade execution failed: {str(e)}",
-                timestamp=asyncio.get_event_loop().time()
-            )
-            
-    def _validate_signal(self, signal: MarketSignal) -> bool:
-        """Validate incoming market signal"""
-        return (
-            0 <= signal.confidence <= 1 and
-            signal.direction in ["long", "short"] and
-            signal.symbol and
-            signal.timestamp > 0 and
-            signal.volatility >= 0
+            self.logger.error(f"Error processing actions: {str(e)}")
+            return []
+    
+    def _get_default_risk_metrics(self) -> RiskMetrics:
+        """Get default risk metrics"""
+        return RiskMetrics(
+            portfolio_var=0.0,
+            portfolio_volatility=0.0,
+            position_var={},
+            position_volatility={},
+            correlation_matrix={},
+            max_drawdown=0.0,
+            sharpe_ratio=0.0,
+            sortino_ratio=0.0,
+            current_heat=0.0
         )
-        
-    def _check_trade_capacity(self) -> bool:
-        """Check if we have capacity for new trades"""
-        max_trades = self.config.get("max_concurrent_trades", 10)
-        return len(self.active_trades) < max_trades
-        
-    def _create_trade_from_action(
-        self,
-        signal: MarketSignal,
-        action: TradingAction,
-        risk_metrics: Dict[str, Any]
-    ) -> Trade:
-        """Create a trade object from an optimized trading action"""
-        return Trade(
-            symbol=signal.symbol,
-            direction=action.action_type.replace('enter_', ''),
-            size=risk_metrics["adjusted_size"],
-            entry_price=None,  # Will be set during execution
-            stop_loss=risk_metrics["stop_loss"],
-            take_profit=risk_metrics["take_profit"],
-            metadata={
-                **signal.metadata,
-                "risk_reward_ratio": risk_metrics["risk_reward_ratio"],
-                "volatility": signal.volatility,
-                "expected_reward": action.expected_reward,
-                "action_uncertainty": action.uncertainty
-            }
+    
+    def _get_default_performance_metrics(self) -> PerformanceMetrics:
+        """Get default performance metrics"""
+        return PerformanceMetrics(
+            total_return=0.0,
+            risk_adjusted_return=0.0,
+            win_rate=0.0,
+            profit_factor=0.0,
+            avg_win_loss_ratio=0.0,
+            max_drawdown=0.0,
+            recovery_factor=0.0,
+            sharpe_ratio=0.0,
+            sortino_ratio=0.0,
+            calmar_ratio=0.0,
+            portfolio_turnover=0.0,
+            transaction_costs=0.0
         )

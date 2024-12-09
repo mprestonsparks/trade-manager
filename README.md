@@ -11,22 +11,22 @@ A sophisticated trading system that combines Active Inference methodology with G
   - Balances exploration and exploitation in trading decisions
 
 - **Advanced Risk Management**
-  - Dynamic position sizing based on market volatility
+  - Dynamic position sizing based on market volatility and beliefs
   - Adaptive stop-loss and take-profit levels
-  - Portfolio heat monitoring
-  - Real-time risk metrics tracking
+  - Portfolio heat monitoring and risk-adjusted position sizing
+  - Real-time risk metrics tracking with belief updates
 
 - **Portfolio Management**
-  - Dynamic capital allocation
-  - Strategy weight optimization
-  - Performance tracking
-  - Automated rebalancing
+  - Dynamic capital allocation using active inference
+  - Strategy weight optimization through belief updates
+  - Performance tracking and attribution
+  - Automated rebalancing based on market beliefs
 
-- **Market Analysis Integration**
-  - Real-time signal processing
-  - Market state analysis
-  - Multi-timeframe analysis
-  - Technical indicator integration
+- **System State Management**
+  - Centralized state management through SystemState
+  - Belief maintenance and updates
+  - Real-time market data integration
+  - Position and portfolio tracking
 
 ## System Architecture
 
@@ -34,18 +34,22 @@ A sophisticated trading system that combines Active Inference methodology with G
 trade-manager/
 ├── src/
 │   ├── core/                   # Core trading components
-│   │   ├── trade_engine.py     # Main trading engine
+│   │   ├── trading_session.py  # Main trading coordinator
+│   │   ├── system_state.py     # Centralized state management
+│   │   ├── trade_engine.py     # Trade execution engine
 │   │   ├── portfolio.py        # Portfolio management
 │   │   └── risk_manager.py     # Risk management system
-│   ├── strategy/               # Trading strategies
-│   │   ├── optimizer.py        # Active Inference optimizer
-│   │   └── executor.py         # Strategy execution
-│   ├── api/                    # External integrations
+│   ├── brokers/                # Broker integrations
+│   │   ├── base_broker.py      # Abstract broker interface
+│   │   └── interactive_brokers_adapter.py  # IB implementation
+│   ├── config/                 # Configuration
+│   │   └── trading_config.py   # System configuration
 │   └── utils/                  # Utility functions
-└── docs/
-    ├── active_inference.md     # Active Inference documentation
-    ├── api_reference.md        # API documentation
-    └── architecture.md         # System architecture
+├── docs/
+│   ├── system_components.md    # Component documentation
+│   └── architecture.md         # System architecture
+└── examples/
+    └── paper_trading_example.py  # Example implementation
 ```
 
 ## Setup
@@ -63,11 +67,12 @@ pip install -r requirements.txt
 
 ## Configuration
 
-The system is configured through a configuration dictionary that controls:
-- Active Inference parameters
-- Risk management limits
-- Portfolio allocation rules
-- Trading constraints
+The system is configured through `trading_config.py` which controls:
+- Active Inference parameters and beliefs
+- Risk management limits and thresholds
+- Portfolio allocation rules and constraints
+- Broker-specific settings
+- Trading execution parameters
 
 Example configuration:
 ```python
@@ -82,16 +87,16 @@ config = {
     "risk_per_trade": 0.02,       # Risk per trade
     "max_portfolio_heat": 1.0,    # Maximum portfolio risk
     
-    # Trading parameters
+    # Portfolio parameters
     "max_concurrent_trades": 10,  # Maximum open positions
-    "base_position_size": 0.01    # Base position size
+    "base_position_size": 0.01,   # Base position size
+    "rebalance_threshold": 0.05   # Rebalancing threshold
 }
 ```
 
 ## Documentation
 
-- [Active Inference System](docs/active_inference.md) - Detailed explanation of the Active Inference trading system
-- [API Reference](docs/api_reference.md) - API documentation
+- [System Components](docs/system_components.md) - Detailed component documentation
 - [Architecture](docs/architecture.md) - System architecture and design
 
 ## Development
@@ -109,4 +114,4 @@ pytest tests/
 
 ## License
 
-[License details to be added]
+This project is the private property the author (M. Preston Sparks) and is not intended for outside use. All rights reserved.
