@@ -14,8 +14,7 @@ from ..core.risk_manager import RiskManager
 from ..core.trade_engine import TradeEngine
 from ..strategy.portfolio_optimizer import UnifiedOptimizer
 from ..config.trading_config import get_default_config
-from market_analysis.market_analysis import MarketAnalyzer
-from market_analysis.config.technical_indicators import get_indicator_config
+from .market_analysis_client import MarketAnalysisClient
 from .models import (
     TradeRequest,
     TradeResponse,
@@ -43,11 +42,9 @@ app.add_middleware(
 config = get_default_config()
 system_state = SystemState(config)
 
-# Initialize market analyzer with default symbol and indicator config
-market_analyzer = MarketAnalyzer(
-    symbol=config.get("default_symbol", "SPY"),
-    indicator_config=get_indicator_config(),
-    test_mode=config.get("test_mode", False)
+# Initialize market analyzer client
+market_analyzer = MarketAnalysisClient(
+    base_url=f"http://{config.get('market_analysis_host', 'localhost')}:{config.get('market_analysis_port', 8000)}"
 )
 
 # Initialize optimizer with market analyzer
