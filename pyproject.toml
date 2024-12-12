@@ -1,6 +1,23 @@
 [build-system]
-requires = ["setuptools>=42.0", "wheel"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "trade-manager"
+version = "0.1.0"
+description = "Trade management service for executing and monitoring trades"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.104.1",
+    "uvicorn>=0.24.0",
+    "pydantic>=2.5.2",
+    "pydantic-settings>=2.0.0",
+    "prometheus-fastapi-instrumentator>=0.22.0",
+]
+
+[tool.setuptools]
+packages = ["trade_manager"]
+package-dir = {"" = "src"}
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

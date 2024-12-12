@@ -4,6 +4,7 @@ FastAPI application for trade manager service.
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
@@ -37,6 +38,45 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Setup Prometheus instrumentation
+instrumentator = Instrumentator(
+    should_group_status_codes=True,
+    should_ignore_untemplated=True,
+    should_respect_env_var=True,
+    should_instrument_requests_inprogress=True,
+    excluded_handlers=["/metrics"],
+    env_var_name="ENABLE_METRICS",
+    inprogress_name="trade_manager_requests_inprogress",
+    inprogress_labels=True,
+)
+
+# Add custom metrics
+@instrumentator.counter(
+    name="trade_manager_trades_total",
+    documentation="Total number of trades executed",
+    labels={"status": lambda r: r.state.get("trade_status", "unknown")}
+)
+def trades_total():
+    return 0
+
+@instrumentator.histogram(
+    name="trade_manager_execution_duration_seconds",
+    documentation="Duration of trade execution operations",
+    buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
+)
+def execution_duration():
+    return 0
+
+@instrumentator.gauge(
+    name="trade_manager_active_positions",
+    documentation="Number of currently active positions",
+)
+def active_positions():
+    return len(system_state.portfolio_manager.positions) if hasattr(system_state, 'portfolio_manager') else 0
+
+# Initialize and instrument
+instrumentator.instrument(app).expose(app, include_in_schema=True, tags=["Monitoring"])
 
 # Initialize trading components
 config = get_default_config()
