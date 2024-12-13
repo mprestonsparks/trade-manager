@@ -8,6 +8,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
+from ..core.config import settings
 from ..core.trading_session import TradingSession
 from ..core.system_state import SystemState
 from ..core.portfolio import PortfolioManager
@@ -19,21 +20,22 @@ from .market_analysis_client import MarketAnalysisClient
 from .models import (
     TradeRequest,
     TradeResponse,
-    PositionInfo,
-    SystemStatus,
-    OrderStatus
+    OrderStatus,
+    SystemStatus
 )
 
+# Create FastAPI app
 app = FastAPI(
-    title="Trade Manager API",
-    description="API for managing trading operations and portfolio management",
-    version="1.0.0"
+    title="Trade Manager Service",
+    description="Service for managing and executing trades",
+    version="1.0.0",
+    debug=settings.DEBUG
 )
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -78,13 +80,22 @@ def active_positions():
 # Initialize and instrument
 instrumentator.instrument(app).expose(app, include_in_schema=True, tags=["Monitoring"])
 
-# Initialize trading components
+# Initialize trading components with settings
 config = get_default_config()
+config.update({
+    'max_position_size': settings.MAX_POSITION_SIZE,
+    'risk_percentage': settings.RISK_PERCENTAGE,
+    'max_drawdown': settings.MAX_DRAWDOWN,
+    'stop_loss_percentage': settings.STOP_LOSS_PERCENTAGE,
+    'take_profit_percentage': settings.TAKE_PROFIT_PERCENTAGE,
+})
+
+# Initialize system state
 system_state = SystemState(config)
 
 # Initialize market analyzer client
 market_analyzer = MarketAnalysisClient(
-    base_url=f"http://{config.get('market_analysis_host', 'localhost')}:{config.get('market_analysis_port', 8000)}"
+    base_url=f"http://{settings.MARKET_ANALYSIS_HOST}:{settings.MARKET_ANALYSIS_PORT}"
 )
 
 # Initialize optimizer with market analyzer
@@ -106,7 +117,7 @@ async def get_system_status():
         }
     }
 
-@app.get("/positions", response_model=List[PositionInfo])
+@app.get("/positions", response_model=List[Dict[str, Any]])
 async def get_positions():
     """Get all current positions"""
     try:

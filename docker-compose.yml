@@ -1,38 +1,36 @@
-version: '3.8'
-
 services:
-  api:
+  trade-manager:
     build: .
     ports:
-      - "8001:8001"
+      - "${API_PORT}:${API_PORT}"  # Main API port
+      - "${METRICS_PORT}:${METRICS_PORT}"  # Metrics port
     environment:
+      - API_PORT=${API_PORT}
+      - API_HOST=${API_HOST}
+      - METRICS_PORT=${METRICS_PORT}
       - PYTHONPATH=/app
-      - MARKET_ANALYSIS_HOST=market-analysis
-      - MARKET_ANALYSIS_PORT=8000
-      - TRADE_DISCOVERY_HOST=trade-discovery
-      - TRADE_DISCOVERY_PORT=8002
+      - MARKET_ANALYSIS_HOST=${MARKET_ANALYSIS_HOST}
+      - MARKET_ANALYSIS_PORT=${MARKET_ANALYSIS_PORT}
+      - TRADE_DISCOVERY_HOST=${TRADE_DISCOVERY_HOST}
+      - TRADE_DISCOVERY_PORT=${TRADE_DISCOVERY_PORT}
+      - ENABLE_METRICS=${ENABLE_METRICS}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - MAX_POSITION_SIZE=${MAX_POSITION_SIZE}
+      - RISK_PERCENTAGE=${RISK_PERCENTAGE}
+      - MAX_DRAWDOWN=${MAX_DRAWDOWN}
+      - STOP_LOSS_PERCENTAGE=${STOP_LOSS_PERCENTAGE}
+      - TAKE_PROFIT_PERCENTAGE=${TAKE_PROFIT_PERCENTAGE}
+      - DATABASE_URL=${DATABASE_URL}
+      - API_KEY=${API_KEY}
+      - API_KEY_HEADER=${API_KEY_HEADER}
+      - DEBUG=${DEBUG}
+      - ENVIRONMENT=${ENVIRONMENT}
     volumes:
       - .:/app
-    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8001 --reload
+    command: uvicorn src.api.main:app --host ${API_HOST} --port ${API_PORT} --reload
     networks:
-      - trading_net
-
-  test:
-    build:
-      context: .
-      dockerfile: Dockerfile.test
-    environment:
-      - PYTHONPATH=/app
-      - MARKET_ANALYSIS_HOST=market-analysis
-      - MARKET_ANALYSIS_PORT=8000
-      - TRADE_DISCOVERY_HOST=trade-discovery
-      - TRADE_DISCOVERY_PORT=8002
-    volumes:
-      - .:/app
-    command: python -m pytest tests/ -v
-    networks:
-      - trading_net
+      - trade_manager_net
 
 networks:
-  trading_net:
-    external: true
+  trade_manager_net:
+    driver: bridge
