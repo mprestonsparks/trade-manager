@@ -5,6 +5,42 @@ Import-Module powershell-yaml
 
 Write-Host "Setting up GitHub integration..."
 
+# Get project ID
+$projectQuery = @"
+query {
+  user(login: "mprestonsparks") {
+    projectV2(number: 1) {
+      id
+      title
+    }
+  }
+}
+"@
+
+$projectInfo = gh api graphql -f query=$projectQuery | ConvertFrom-Json
+if (-not $projectInfo.data.user.projectV2) {
+    Write-Error "Trading System Development project not found. Please create it first."
+    Write-Host @"
+Please create a new project on GitHub with the following settings:
+1. Title: Trading System Development
+2. Template: Board
+3. Create the following columns:
+   - Ready
+   - In Progress
+   - Blocked
+   - Review
+   - Completed
+4. Link the following repositories:
+   - trade-manager
+   - trade-discovery
+   - market-analysis
+   - trade-dashboard
+"@
+    exit 1
+}
+
+$PROJECT_ID = $projectInfo.data.user.projectV2.id
+
 # Create status labels
 $labels = @(
     @{name="ready"; color="0E8A16"; description="Task is ready to be worked on"},
