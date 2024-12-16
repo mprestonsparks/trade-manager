@@ -1,0 +1,57 @@
+next_available_tasks:
+- id: 1
+  prerequisites_met: true
+  status: in-progress
+  name: Set up FastAPI service structure
+  github_issue: 2
+  description: Create initial FastAPI service structure with proper routing and dependency injection
+  blocking:
+  - 2
+  - 3
+  priority: 1
+- id: 2
+  prerequisites_met: false
+  status: blocked
+  name: Implement database models
+  github_issue: 3
+  description: Define SQLAlchemy models for trade and position tracking
+  blocking:
+  - 4
+  priority: 2
+- id: 3
+  prerequisites_met: false
+  status: blocked
+  name: Set up authentication
+  github_issue: 4
+  description: Implement secure authentication using Firebase Auth
+  blocking:
+  - 4
+  - 5
+  priority: 2
+- id: 4
+  prerequisites_met: false
+  status: blocked
+  name: Create trade execution endpoints
+  github_issue: 5
+  description: Implement endpoints for trade execution and management
+  blocking:
+  - 6
+  priority: 3
+- id: 5
+  prerequisites_met: false
+  status: blocked
+  name: Set up monitoring
+  github_issue: 6
+  description: Configure Prometheus and Grafana for system monitoring
+  blocking: []
+  priority: 3
+- id: 6
+  prerequisites_met: false
+  status: blocked
+  name: Implement risk management
+  github_issue: 7
+  description: Add position sizing and risk management features
+  blocking: []
+  priority: 4
+completed_tasks: []
+
