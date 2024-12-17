@@ -1,0 +1,40 @@
+name: Sync Project to Local
+
+on:
+  issues:
+    types: [opened, edited, closed, reopened, labeled, unlabeled, assigned, unassigned]
+  workflow_dispatch:
+  repository_dispatch:
+    types: [project_item_changed]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: .github/scripts/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd .github/scripts
+          npm ci
+
+      - name: Sync Project to Local
+        run: |
+          cd .github/scripts
+          node sync/index.js sync-to-local \
+            --token ${{ secrets.SYNC_TOKEN }} \
+            --owner ${{ github.repository_owner }} \
+            --repo ${{ github.event.repository.name }} \
+            --event '${{ toJSON(github.event) }}'
+        env:
+          GITHUB_TOKEN: ${{ secrets.SYNC_TOKEN }}

@@ -1,0 +1,41 @@
+name: Sync Local to Project
+
+on:
+  push:
+    paths:
+      - '.project/status/DEVELOPMENT_STATUS.yaml'
+    branches:
+      - main
+      - master
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: .github/scripts/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd .github/scripts
+          npm ci
+
+      - name: Sync Local to Project
+        run: |
+          cd .github/scripts
+          node sync/index.js sync-to-project \
+            --token ${{ secrets.SYNC_TOKEN }} \
+            --owner ${{ github.repository_owner }} \
+            --repo ${{ github.event.repository.name }} \
+            --commit '${{ toJSON(github.event.head_commit) }}'
+        env:
+          GITHUB_TOKEN: ${{ secrets.SYNC_TOKEN }}

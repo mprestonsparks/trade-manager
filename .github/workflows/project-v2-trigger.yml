@@ -1,0 +1,23 @@
+name: Project V2 Event Trigger
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types:
+      - project_item_changed
+
+jobs:
+  trigger-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Project V2 Events
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Event data: ${{ toJSON(github.event) }}"
+
+      - name: Trigger sync workflow
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.SYNC_TOKEN }}
+          event-type: project_item_changed
+          client-payload: '{"event": ${{ toJSON(github.event) }}}'

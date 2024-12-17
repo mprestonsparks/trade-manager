@@ -1,0 +1,9 @@
+project_phase: development
+tasks:
+  - id: 1
+    title: Task 1
+    status: pending
+  - id: 1
+    title: Task 2
+    status: pending
+dependencies: {}

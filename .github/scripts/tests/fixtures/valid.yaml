@@ -1,0 +1,19 @@
+project_phase: development
+tasks:
+  - id: 1
+    title: Test Task
+    status: pending
+    dependencies:
+      - 2
+    cross_repo_refs:
+      - repo: trade-dashboard
+        issue: 123
+  - id: 2
+    title: Dependency Task
+    status: completed
+dependencies:
+  '1':
+    - 2
+metadata:
+  last_updated: '2024-12-17T14:44:17-06:00'
+  version: 1.0.0

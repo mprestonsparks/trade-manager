@@ -1,0 +1,28 @@
+name: Test Project V2 Events
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Test repository dispatch
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.SYNC_TOKEN }}
+          event-type: project_item_changed
+          client-payload: '{"test": true, "message": "Testing project v2 event handling"}'
+
+      - name: Wait for triggered workflow
+        run: sleep 10
+
+      - name: Check workflow runs
+        run: |
+          gh workflow view "Project V2 Event Trigger"
+          gh run list --workflow="Project V2 Event Trigger" --limit 1
+        env:
+          GITHUB_TOKEN: ${{ secrets.SYNC_TOKEN }}
