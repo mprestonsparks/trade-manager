@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  js-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.js.test
+    volumes:
+      - ./src:/app/src
+      - ./coverage:/app/coverage
+    environment:
+      - NODE_ENV=test
+      - CI=true
